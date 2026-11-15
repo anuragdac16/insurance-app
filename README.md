@@ -138,9 +138,10 @@ src/main/resources/
 
 ## Development status
 
-This is an initial implementation, not a production-ready claims system. Tests are intentionally
-deferred until the workflow scope is complete. Before release, add unit/integration and concurrency
-tests; authentication/authorization; idempotency for submission and claimant responses; market and
-policy eligibility validation; secure document upload and malware scanning; payment integration;
-staff performance aggregates; event schema versioning and multi-instance outbox claiming;
-retention/consent controls; and production Kafka/PostgreSQL deployment configuration.
+This is an initial implementation, not a production-ready claims system. Unit tests cover the claims
+API routes, request validation, service workflow rules, and repository/outbox interactions. Before
+release, add database-backed integration and concurrency tests; authentication/authorization;
+idempotency for submission and claimant responses; market and policy eligibility validation; secure
+document upload and malware scanning; payment integration; staff performance aggregates; event
+schema versioning and multi-instance outbox claiming; retention/consent controls; and production
+Kafka/PostgreSQL deployment configuration.
