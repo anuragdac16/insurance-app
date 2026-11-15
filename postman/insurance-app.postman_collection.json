@@ -1,0 +1,433 @@
+{
+  "info": {
+    "_postman_id": "d17b737f-c15e-4efb-984e-2bc0ad83b42c",
+    "name": "Insurance Claims API",
+    "description": "Sample end-to-end requests for every claims API route. Run the requests in order with the Collection Runner. Claim numbers, tracking tokens, and information request IDs are captured from responses automatically. Local API default: http://localhost:8080. Staff routes currently have no authentication.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "claimNumber", "value": "" },
+    { "key": "trackingToken", "value": "" },
+    { "key": "informationRequestId", "value": "" },
+    { "key": "rejectedClaimNumber", "value": "" },
+    { "key": "rejectedTrackingToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Approved claim - full workflow",
+      "item": [
+        {
+          "name": "01 - Submit claim",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claimantName\": \"Jordan Lee\",\n  \"claimantEmail\": \"jordan.lee@example.com\",\n  \"claimantPhone\": \"+65 8123 4567\",\n  \"marketCode\": \"SG\",\n  \"productType\": \"MOTOR\",\n  \"policyNumber\": \"SG-MOTOR-2026-0042\",\n  \"incidentDate\": \"2026-11-10\",\n  \"incidentLocation\": \"Orchard Road, Singapore\",\n  \"incidentDescription\": \"The insured vehicle was struck from behind at a traffic light. The rear bumper and tailgate are damaged.\",\n  \"estimatedLossAmount\": 1500.00,\n  \"currencyCode\": \"SGD\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/claims",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "claims"]
+            },
+            "description": "Creates a claim and saves claimNumber and trackingToken for the remaining requests."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Claim created (201)', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('claimNumber', body.claimNumber);",
+                  "pm.collectionVariables.set('trackingToken', body.trackingToken);",
+                  "pm.test('Response includes claim number and tracking token', function () { pm.expect(body.claimNumber).to.be.a('string'); pm.expect(body.trackingToken).to.be.a('string'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "02 - Track claim (initial status)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Claim-Tracking-Token", "value": "{{trackingToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/claims/{{claimNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "claims", "{{claimNumber}}"]
+            },
+            "description": "Claimant endpoint; requires the token returned when the claim was submitted."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Claim tracking succeeds', function () { pm.response.to.have.status(200); });",
+                  "pm.test('New claim starts as SUBMITTED', function () { pm.expect(pm.response.json().status).to.eql('SUBMITTED'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "03 - Search staff queue",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims?status=SUBMITTED&marketCode=SG&page=0&size=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims"],
+              "query": [
+                { "key": "status", "value": "SUBMITTED" },
+                { "key": "marketCode", "value": "SG" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "Optional filters include status, marketCode, and assignedTo. Pagination uses page and size (maximum size is 100)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Staff queue search succeeds', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "04 - Get staff workload",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/workload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "workload"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Workload query succeeds', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "05 - Assign claim to staff",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"staffId\": \"adjuster.sg.001\",\n  \"assignedBy\": \"claims.supervisor\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/assignment",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "assignment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Claim assigned', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "06 - Move claim to UNDER_REVIEW",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"UNDER_REVIEW\",\n  \"changedBy\": \"adjuster.sg.001\",\n  \"reason\": \"Initial coverage and incident review started\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Claim moved to review', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UNDER_REVIEW'); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "07 - Request additional information",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestText\": \"Please provide the incident report number and clear photographs of the rear bumper and tailgate.\",\n  \"dueAt\": \"2026-12-01T00:00:00Z\",\n  \"requestedBy\": \"adjuster.sg.001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/information-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "information-requests"]
+            },
+            "description": "Only available while the claim is UNDER_REVIEW. Saves the response requestId for the claimant response."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Information request created (201)', function () { pm.response.to.have.status(201); });",
+                  "pm.collectionVariables.set('informationRequestId', pm.response.json().requestId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "08 - Claimant responds to information request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Claim-Tracking-Token", "value": "{{trackingToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"responseText\": \"The incident report number is SG-TP-2026-11824. Attached photos were submitted to the claims team through the agreed channel.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/claims/{{claimNumber}}/information-requests/{{informationRequestId}}/responses",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "claims", "{{claimNumber}}", "information-requests", "{{informationRequestId}}", "responses"]
+            },
+            "description": "Claimant endpoint; requires the tracking token and an unanswered information request."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Information response accepted', function () { pm.response.to.have.status(200); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "09 - Resume review",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"UNDER_REVIEW\",\n  \"changedBy\": \"adjuster.sg.001\",\n  \"reason\": \"Requested information received\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Review resumed', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UNDER_REVIEW'); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 - Approve claim",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"APPROVED\",\n  \"rationale\": \"Coverage confirmed and the reported damage is consistent with the incident.\",\n  \"liabilityAmount\": 1250.00,\n  \"currencyCode\": \"SGD\",\n  \"decidedBy\": \"adjuster.sg.001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/decision",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "decision"]
+            },
+            "description": "A decision requires UNDER_REVIEW. Approved claims require liabilityAmount and matching claim currency."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Claim approved', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('APPROVED'); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 - Record settlement",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentReference\": \"PAY-SG-2026-00042\",\n  \"amount\": 1250.00,\n  \"currencyCode\": \"SGD\",\n  \"recordedBy\": \"claims.finance.001\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/settlements",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "settlements"]
+            },
+            "description": "Settlement amount and currency must match the approved decision. A claim can only be settled once."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Settlement recorded', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('SETTLED'); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 - Track settled claim",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "X-Claim-Tracking-Token", "value": "{{trackingToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/claims/{{claimNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "claims", "{{claimNumber}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Final claim status is SETTLED', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('SETTLED'); });",
+                  "pm.test('Tracking includes history, information request, and decision', function () { const body = pm.response.json(); pm.expect(body.history.length).to.be.above(1); pm.expect(body.informationRequests.length).to.be.above(0); pm.expect(body.decision.outcome).to.eql('APPROVED'); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Optional - Rejection workflow",
+      "description": "Run after the approved flow, or run this folder independently after clearing its saved variables.",
+      "item": [
+        {
+          "name": "R1 - Submit claim for rejection example",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"claimantName\": \"Casey Tan\",\n  \"claimantEmail\": \"casey.tan@example.com\",\n  \"claimantPhone\": \"+65 8777 1234\",\n  \"marketCode\": \"SG\",\n  \"productType\": \"PROPERTY\",\n  \"policyNumber\": \"SG-HOME-2026-0091\",\n  \"incidentDate\": \"2026-11-08\",\n  \"incidentLocation\": \"Tampines, Singapore\",\n  \"incidentDescription\": \"Water damage was discovered in the kitchen after a pipe leak.\",\n  \"estimatedLossAmount\": 800.00,\n  \"currencyCode\": \"SGD\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/claims",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "claims"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Rejection example claim created (201)', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('rejectedClaimNumber', body.claimNumber);",
+                  "pm.collectionVariables.set('rejectedTrackingToken', body.trackingToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R2 - Move rejection example to UNDER_REVIEW",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"UNDER_REVIEW\",\n  \"changedBy\": \"adjuster.sg.002\",\n  \"reason\": \"Review started\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{rejectedClaimNumber}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{rejectedClaimNumber}}", "status"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Rejection example enters review', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UNDER_REVIEW'); });"]
+              }
+            }
+          ]
+        },
+        {
+          "name": "R3 - Reject claim",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"outcome\": \"REJECTED\",\n  \"rationale\": \"The reported cause of damage is excluded under the sample policy terms.\",\n  \"liabilityAmount\": 0.00,\n  \"currencyCode\": \"SGD\",\n  \"decidedBy\": \"adjuster.sg.002\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/staff/claims/{{rejectedClaimNumber}}/decision",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "staff", "claims", "{{rejectedClaimNumber}}", "decision"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test('Claim rejected', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('REJECTED'); });"]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
