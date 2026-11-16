@@ -296,6 +296,7 @@ class ClaimServiceTest {
                 "Covered", new BigDecimal("100.00"), "SGD", "adjuster", NOW);
         when(claimRepository.findByClaimNumber(CLAIM_NUMBER)).thenReturn(Optional.of(claim));
         when(settlementRepository.existsByClaimId(CLAIM_ID)).thenReturn(false);
+        when(settlementRepository.existsByPaymentReference("payment-1")).thenReturn(false);
         when(decisionRepository.findFirstByClaimId(CLAIM_ID)).thenReturn(Optional.of(decision));
 
         ClaimDtos.StaffClaimResponse response = service.settle(CLAIM_NUMBER,
@@ -316,6 +317,11 @@ class ClaimServiceTest {
         assertThrows(InvalidRequestException.class, () -> service.settle(CLAIM_NUMBER, settlementRequest()));
 
         when(settlementRepository.existsByClaimId(CLAIM_ID)).thenReturn(false);
+        when(settlementRepository.existsByPaymentReference("payment-1")).thenReturn(true);
+        assertThrows(InvalidRequestException.class, () -> service.settle(CLAIM_NUMBER, settlementRequest()));
+        verify(settlementRepository, never()).save(any());
+
+        when(settlementRepository.existsByPaymentReference("payment-1")).thenReturn(false);
         when(decisionRepository.findFirstByClaimId(CLAIM_ID)).thenReturn(Optional.empty());
         assertThrows(InvalidRequestException.class, () -> service.settle(CLAIM_NUMBER, settlementRequest()));
 

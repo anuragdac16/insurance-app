@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public interface ClaimSettlementRepository extends JpaRepository<ClaimSettlement, UUID> {
     boolean existsByClaimId(UUID claimId);
+    boolean existsByPaymentReference(String paymentReference);
 }

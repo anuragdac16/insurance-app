@@ -200,6 +200,10 @@ public class ClaimService {
         if (settlementRepository.existsByClaimId(claim.getId())) {
             throw new InvalidRequestException("A settlement has already been recorded for this claim");
         }
+        String paymentReference = request.paymentReference().trim();
+        if (settlementRepository.existsByPaymentReference(paymentReference)) {
+            throw new InvalidRequestException("This payment reference has already been used");
+        }
         ClaimDecision decision = decisionRepository.findFirstByClaimId(claim.getId())
                 .orElseThrow(() -> new InvalidRequestException("An approved decision is required before settlement"));
         String currencyCode = request.currencyCode().toUpperCase(Locale.ROOT);
@@ -212,7 +216,7 @@ public class ClaimService {
         }
         Instant now = Instant.now();
         settlementRepository.save(new ClaimSettlement(UUID.randomUUID(), claim.getId(),
-                request.paymentReference().trim(), request.amount(), currencyCode,
+                paymentReference, request.amount(), currencyCode,
                 request.recordedBy().trim(), now));
         updateStatus(claim, ClaimStatus.SETTLED, request.recordedBy(), "Settlement recorded");
         return toStaffResponse(claim);

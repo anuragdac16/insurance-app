@@ -10,6 +10,7 @@
     { "key": "claimNumber", "value": "" },
     { "key": "trackingToken", "value": "" },
     { "key": "informationRequestId", "value": "" },
+    { "key": "settlementPaymentReference", "value": "" },
     { "key": "rejectedClaimNumber", "value": "" },
     { "key": "rejectedTrackingToken", "value": "" }
   ],
@@ -44,6 +45,7 @@
                   "const body = pm.response.json();",
                   "pm.collectionVariables.set('claimNumber', body.claimNumber);",
                   "pm.collectionVariables.set('trackingToken', body.trackingToken);",
+                  "pm.collectionVariables.set('settlementPaymentReference', 'PAY-SG-' + pm.variables.replaceIn('{{$guid}}'));",
                   "pm.test('Response includes claim number and tracking token', function () { pm.expect(body.claimNumber).to.be.a('string'); pm.expect(body.trackingToken).to.be.a('string'); });"
                 ]
               }
@@ -222,7 +224,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "v1", "claims", "{{claimNumber}}", "information-requests", "{{informationRequestId}}", "responses"]
             },
-            "description": "Claimant endpoint; requires the tracking token and an unanswered information request."
+            "description": "Claimant endpoint; requires the tracking token and an unanswered information request. When this is the last unanswered request, the service automatically moves the claim back to UNDER_REVIEW."
           },
           "event": [
             {
@@ -235,33 +237,7 @@
           ]
         },
         {
-          "name": "09 - Resume review",
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"UNDER_REVIEW\",\n  \"changedBy\": \"adjuster.sg.001\",\n  \"reason\": \"Requested information received\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/staff/claims/{{claimNumber}}/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "v1", "staff", "claims", "{{claimNumber}}", "status"]
-            }
-          },
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": ["pm.test('Review resumed', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().status).to.eql('UNDER_REVIEW'); });"]
-              }
-            }
-          ]
-        },
-        {
-          "name": "10 - Approve claim",
+          "name": "09 - Approve claim",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -288,13 +264,13 @@
           ]
         },
         {
-          "name": "11 - Record settlement",
+          "name": "10 - Record settlement",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"paymentReference\": \"PAY-SG-2026-00042\",\n  \"amount\": 1250.00,\n  \"currencyCode\": \"SGD\",\n  \"recordedBy\": \"claims.finance.001\"\n}",
+              "raw": "{\n  \"paymentReference\": \"{{settlementPaymentReference}}\",\n  \"amount\": 1250.00,\n  \"currencyCode\": \"SGD\",\n  \"recordedBy\": \"claims.finance.001\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -315,7 +291,7 @@
           ]
         },
         {
-          "name": "12 - Track settled claim",
+          "name": "11 - Track settled claim",
           "request": {
             "method": "GET",
             "header": [{ "key": "X-Claim-Tracking-Token", "value": "{{trackingToken}}" }],
