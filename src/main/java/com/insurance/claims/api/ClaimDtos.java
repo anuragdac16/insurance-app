@@ -25,7 +25,8 @@ public final class ClaimDtos {
             @NotBlank @Size(max = 200) String claimantName,
             @NotBlank @Email @Size(max = 320) String claimantEmail,
             @Size(max = 40) String claimantPhone,
-            @NotBlank @Pattern(regexp = "[A-Za-z]{2,3}") String marketCode,
+            @NotBlank @Pattern(regexp = "[A-Za-z]{2,3}", message = "Market code must be 2 or 3 letters.")
+            String marketCode,
             @NotNull ClaimProductType productType,
             @NotBlank @Size(max = 80) String policyNumber,
             @NotNull @PastOrPresent LocalDate incidentDate,

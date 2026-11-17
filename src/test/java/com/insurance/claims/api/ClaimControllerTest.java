@@ -80,6 +80,18 @@ class ClaimControllerTest {
     }
 
     @Test
+    void submitReturnsReadableMessageForInvalidMarketCode() throws Exception {
+        String invalidMarketCodeJson = validSubmitJson().replace("\"marketCode\": \"SG\"",
+                "\"marketCode\": \"S1\"");
+
+        mockMvc.perform(post("/api/v1/claims").contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidMarketCodeJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message")
+                        .value("marketCode: Market code must be 2 or 3 letters."));
+    }
+
+    @Test
     void trackRequiresTrackingHeaderAndReturnsTrackingResponse() throws Exception {
         when(claimService.track("CLM-123456789ABC", "secret")).thenReturn(new ClaimDtos.TrackingResponse(
                 "CLM-123456789ABC", "SG", ClaimProductType.MOTOR, ClaimStatus.SUBMITTED,

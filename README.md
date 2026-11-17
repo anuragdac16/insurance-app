@@ -31,9 +31,25 @@ acknowledgement but before the database update can cause a repeat. Kafka message
 number to preserve per-claim partition ordering. Claimants get a randomly generated tracking token
 once at submission; only its SHA-256 hash is stored.
 
-The implemented lifecycle is `SUBMITTED → UNDER_REVIEW`; review can request information
-(`AWAITING_INFORMATION`) and resume after the claimant replies, then record `APPROVED` or
-`REJECTED`. An approved claim can be marked `SETTLED` when staff records a confirmed payment.
+### Claim lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> SUBMITTED
+    SUBMITTED --> UNDER_REVIEW: Staff starts review
+    UNDER_REVIEW --> AWAITING_INFORMATION: Staff requests information
+    AWAITING_INFORMATION --> UNDER_REVIEW: All requested information received
+    UNDER_REVIEW --> APPROVED: Staff approves
+    UNDER_REVIEW --> REJECTED: Staff rejects
+    APPROVED --> SETTLED: Staff records confirmed payment
+```
+
+Staff starts or resumes review by moving a `SUBMITTED` or `AWAITING_INFORMATION` claim to
+`UNDER_REVIEW`. While reviewing, staff can request information, which moves the claim to
+`AWAITING_INFORMATION`. The claimant responds to each outstanding request using the tracking
+token; once all requests have responses, the claim automatically returns to `UNDER_REVIEW`.
+Staff then records an `APPROVED` or `REJECTED` decision. Only an approved claim can move to
+`SETTLED`, and only when staff records a confirmed payment.
 
 ### PostgreSQL model
 
